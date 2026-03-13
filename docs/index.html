@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Auto-Msg Scheduler – WhatsApp</title>
+  <style>
+    /* ── Reset & base ─────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #128C7E 0%, #075E54 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+
+    /* ── Card ─────────────────────────────────────────────── */
+    .card {
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.25);
+      padding: 2.5rem 2rem;
+      width: 100%;
+      max-width: 480px;
+    }
+
+    .card header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 2rem;
+    }
+
+    .card header img {
+      width: 48px;
+      height: 48px;
+    }
+
+    .card header h1 {
+      font-size: 1.4rem;
+      color: #075E54;
+    }
+
+    .card header p {
+      font-size: 0.78rem;
+      color: #6b7280;
+      margin-top: 2px;
+    }
+
+    /* ── Form ─────────────────────────────────────────────── */
+    .form-group {
+      margin-bottom: 1.25rem;
+    }
+
+    label {
+      display: block;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #374151;
+      margin-bottom: 0.4rem;
+    }
+
+    label span.required { color: #ef4444; }
+
+    input, textarea {
+      width: 100%;
+      padding: 0.65rem 0.9rem;
+      border: 1.5px solid #d1d5db;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      color: #111827;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      outline: none;
+      background: #f9fafb;
+    }
+
+    input:focus, textarea:focus {
+      border-color: #25D366;
+      box-shadow: 0 0 0 3px rgba(37,211,102,0.15);
+      background: #fff;
+    }
+
+    textarea { resize: vertical; min-height: 100px; }
+
+    .hint {
+      font-size: 0.75rem;
+      color: #9ca3af;
+      margin-top: 0.3rem;
+    }
+
+    /* ── Button ───────────────────────────────────────────── */
+    button[type="submit"] {
+      width: 100%;
+      padding: 0.8rem;
+      background: #25D366;
+      color: #fff;
+      font-size: 1rem;
+      font-weight: 700;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.1s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      margin-top: 0.5rem;
+    }
+
+    button[type="submit"]:hover  { background: #1ebe5a; }
+    button[type="submit"]:active { transform: scale(0.98); }
+    button[type="submit"]:disabled { background: #86efac; cursor: not-allowed; }
+
+    /* ── Alerts ───────────────────────────────────────────── */
+    .alert {
+      display: none;
+      padding: 0.75rem 1rem;
+      border-radius: 8px;
+      font-size: 0.88rem;
+      margin-top: 1rem;
+    }
+
+    .alert.success {
+      background: #dcfce7;
+      color: #15803d;
+      border: 1px solid #86efac;
+    }
+
+    .alert.error {
+      background: #fee2e2;
+      color: #b91c1c;
+      border: 1px solid #fca5a5;
+    }
+
+    /* ── Config note ──────────────────────────────────────── */
+    .config-note {
+      background: #fffbeb;
+      border: 1px solid #fcd34d;
+      border-radius: 8px;
+      padding: 0.75rem 1rem;
+      font-size: 0.78rem;
+      color: #92400e;
+      margin-bottom: 1.5rem;
+      display: none;
+    }
+
+    .config-note code {
+      background: #fef3c7;
+      padding: 0 4px;
+      border-radius: 3px;
+      font-family: monospace;
+    }
+
+    /* ── Footer ───────────────────────────────────────────── */
+    footer {
+      text-align: center;
+      margin-top: 1.5rem;
+      font-size: 0.75rem;
+      color: #9ca3af;
+    }
+
+    footer a { color: #128C7E; text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+
+    /* ── Spinner ──────────────────────────────────────────── */
+    .spinner {
+      width: 18px; height: 18px;
+      border: 3px solid rgba(255,255,255,0.4);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      display: none;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+<div class="card">
+  <header>
+    <!-- WhatsApp-style icon using SVG -->
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+      <circle cx="24" cy="24" r="24" fill="#25D366"/>
+      <path fill="#fff" d="M24 10C16.27 10 10 16.27 10 24c0 2.82.78 5.45 2.14 7.7L10 38l6.54-2.11A13.93 13.93 0 0 0 24 38c7.73 0 14-6.27 14-14S31.73 10 24 10zm0 25.5a11.44 11.44 0 0 1-5.84-1.6l-.42-.25-4.38 1.14 1.17-4.26-.27-.44A11.5 11.5 0 1 1 24 35.5zm6.3-8.6c-.34-.17-2.02-1-2.34-1.11-.32-.11-.55-.17-.78.17s-.9 1.11-1.1 1.34c-.2.23-.4.26-.74.09-.34-.17-1.44-.53-2.74-1.7-1.01-.9-1.7-2.01-1.9-2.35-.2-.34-.02-.52.15-.69.15-.15.34-.4.51-.6.17-.2.23-.34.34-.57.11-.23.06-.43-.03-.6-.09-.17-.78-1.88-1.07-2.57-.28-.67-.57-.58-.78-.59H17.1c-.23 0-.6.09-.91.43-.32.34-1.2 1.18-1.2 2.87s1.23 3.33 1.4 3.56c.17.23 2.42 3.69 5.87 5.18.82.35 1.46.56 1.96.72.82.26 1.57.22 2.16.14.66-.1 2.02-.82 2.31-1.62.28-.8.28-1.48.2-1.62-.09-.14-.32-.23-.66-.4z"/>
+    </svg>
+    <div>
+      <h1>Auto-Msg Scheduler</h1>
+      <p>Schedule WhatsApp messages — powered by Twilio &amp; GitHub Actions</p>
+    </div>
+  </header>
+
+  <!-- Config note shown when SCRIPT_URL is not set -->
+  <div class="config-note" id="configNote">
+    ⚠️ <strong>Setup required:</strong> Replace <code>GOOGLE_SCRIPT_URL</code> in this file with your
+    Google Apps Script web-app URL before using the form.
+    See the <a href="https://github.com/Vaibhav-Dhaduk12/WhatsAppAutoMessage#readme" target="_blank">README</a> for instructions.
+  </div>
+
+  <form id="scheduleForm" novalidate>
+
+    <div class="form-group">
+      <label for="phone">Phone Number <span class="required">*</span></label>
+      <input
+        type="tel"
+        id="phone"
+        name="phone"
+        placeholder="+919876543210"
+        required
+        pattern="^\+[1-9]\d{6,14}$"
+      />
+      <p class="hint">Include country code, e.g. +91 for India.</p>
+    </div>
+
+    <div class="form-group">
+      <label for="message">Message <span class="required">*</span></label>
+      <textarea
+        id="message"
+        name="message"
+        placeholder="Type your WhatsApp message here…"
+        maxlength="1600"
+        required
+      ></textarea>
+      <p class="hint"><span id="charCount">0</span> / 1600 characters</p>
+    </div>
+
+    <div class="form-group">
+      <label for="scheduledTime">Scheduled Date &amp; Time <span class="required">*</span></label>
+      <input
+        type="datetime-local"
+        id="scheduledTime"
+        name="scheduledTime"
+        required
+      />
+      <p class="hint">Times are in your local timezone. The scheduler runs every 10 minutes.</p>
+    </div>
+
+    <button type="submit" id="submitBtn">
+      <span id="btnText">📅 Schedule Message</span>
+      <span class="spinner" id="spinner"></span>
+    </button>
+
+    <div class="alert success" id="successAlert">
+      ✅ Message scheduled successfully! It will be sent at the chosen time.
+    </div>
+    <div class="alert error" id="errorAlert">
+      ❌ <span id="errorText">Something went wrong. Please try again.</span>
+    </div>
+
+  </form>
+
+  <footer>
+    Open-source project · <a href="https://github.com/Vaibhav-Dhaduk12/WhatsAppAutoMessage" target="_blank">View on GitHub</a>
+  </footer>
+</div>
+
+<script>
+  // ── Configuration ────────────────────────────────────────────────────────────
+  // Replace the value below with your Google Apps Script web-app URL.
+  // Instructions: README → Step 2 (Google Apps Script).
+  const GOOGLE_SCRIPT_URL = "REPLACE_WITH_YOUR_GOOGLE_APPS_SCRIPT_URL";
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  const form          = document.getElementById("scheduleForm");
+  const submitBtn     = document.getElementById("submitBtn");
+  const btnText       = document.getElementById("btnText");
+  const spinner       = document.getElementById("spinner");
+  const successAlert  = document.getElementById("successAlert");
+  const errorAlert    = document.getElementById("errorAlert");
+  const errorText     = document.getElementById("errorText");
+  const configNote    = document.getElementById("configNote");
+  const messageInput  = document.getElementById("message");
+  const charCount     = document.getElementById("charCount");
+
+  // Show config note if URL has not been replaced
+  if (GOOGLE_SCRIPT_URL === "REPLACE_WITH_YOUR_GOOGLE_APPS_SCRIPT_URL") {
+    configNote.style.display = "block";
+  }
+
+  // Set minimum datetime to now
+  const scheduledTimeInput = document.getElementById("scheduledTime");
+  const pad = n => String(n).padStart(2, "0");
+  const now = new Date();
+  const localIso = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+  scheduledTimeInput.min = localIso;
+  scheduledTimeInput.value = localIso;
+
+  // Live character count
+  messageInput.addEventListener("input", () => {
+    charCount.textContent = messageInput.value.length;
+  });
+
+  // Form submission
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    hideAlerts();
+
+    if (!form.checkValidity()) {
+      form.reportValidity();
+      return;
+    }
+
+    if (GOOGLE_SCRIPT_URL === "REPLACE_WITH_YOUR_GOOGLE_APPS_SCRIPT_URL") {
+      showError("The Google Apps Script URL has not been configured yet. Please follow the README setup instructions.");
+      return;
+    }
+
+    const phone         = document.getElementById("phone").value.trim();
+    const message       = messageInput.value.trim();
+    const scheduledTime = scheduledTimeInput.value;
+
+    // Validate phone format
+    if (!/^\+[1-9]\d{6,14}$/.test(phone)) {
+      showError("Invalid phone number. Use international format, e.g. +919876543210.");
+      return;
+    }
+
+    setLoading(true);
+
+    const payload = { phone, message, scheduledTime };
+
+    try {
+      // Google Apps Script requires no-cors for cross-origin POST
+      await fetch(GOOGLE_SCRIPT_URL, {
+        method: "POST",
+        mode: "no-cors",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      // no-cors means we can't read the response; assume success
+      showSuccess();
+      form.reset();
+      charCount.textContent = "0";
+      scheduledTimeInput.min = localIso;
+      scheduledTimeInput.value = localIso;
+    } catch (err) {
+      showError("Network error: " + err.message);
+    } finally {
+      setLoading(false);
+    }
+  });
+
+  function setLoading(loading) {
+    submitBtn.disabled = loading;
+    btnText.textContent = loading ? "Scheduling…" : "📅 Schedule Message";
+    spinner.style.display = loading ? "inline-block" : "none";
+  }
+
+  function hideAlerts() {
+    successAlert.style.display = "none";
+    errorAlert.style.display   = "none";
+  }
+
+  function showSuccess() {
+    successAlert.style.display = "block";
+    successAlert.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+
+  function showError(msg) {
+    errorText.textContent      = msg || "Something went wrong. Please try again.";
+    errorAlert.style.display   = "block";
+    errorAlert.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+</script>
+</body>
+</html>
